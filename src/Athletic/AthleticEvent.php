@@ -9,6 +9,7 @@ namespace Athletic;
 
 use Athletic\Factories\MethodResultsFactory;
 use Athletic\Results\MethodResults;
+use JsonSchema\RefResolver;
 use ReflectionClass;
 use zpt\anno\Annotations;
 
@@ -18,9 +19,10 @@ use zpt\anno\Annotations;
  */
 abstract class AthleticEvent
 {
-    /** @var  MethodResultsFactory */
+    /** @var MethodResultsFactory */
     private $methodResultsFactory;
-
+    /** @var \Athletic\Benchmarkers\BenchmarkerInterface[]  */
+    private $currentBenchmarkers;
 
     public function __construct()
     {
@@ -49,6 +51,20 @@ abstract class AthleticEvent
     protected function tearDown()
     {
 
+    }
+
+    /**
+     * Restart benchmarking
+     *
+     * @return mixed
+     */
+    public function restart()
+    {
+        foreach($this->currentBenchmarkers as $benchmarker) {
+            $benchmarker->clean();
+        }
+
+        return true;
     }
 
 
@@ -109,14 +125,14 @@ abstract class AthleticEvent
     private function runMethodBenchmark($method, $annotations)
     {
         $iterations = $annotations['iterations'];
-        $avgCalibration = $this->getCalibrationTime($iterations);
 
-        $results = array();
-        for ($i = 0; $i < $iterations; ++$i) {
-            $this->setUp();
-            $results[$i] = $this->timeMethod($method) - $avgCalibration;
-            $this->tearDown();
+        if(!isset($annotations['benchmark']) || !$annotations['benchmark']) {
+            $annotations['benchmark'] = ['TimeBenchmarker'];
+        } elseif(!is_array($annotations['benchmark'])) {
+            $annotations['benchmark'] = array($annotations['benchmark']);
         }
+
+        $results = $this->benchmarkMethod($method, $iterations, $annotations['benchmark']);
 
         $finalResults = $this->methodResultsFactory->create($method, $results, $iterations);
 
@@ -126,39 +142,51 @@ abstract class AthleticEvent
 
     }
 
-
     /**
-     * @param string $method
+     * @param string   $method
+     * @param int      $iterations
+     * @param string[] $benchmarks      Benchmarker class names
      *
-     * @return mixed
+     * @return \Athletic\Benchmarkers\BenchmarkerInterface[]
      */
-    private function timeMethod($method)
+    private function benchmarkMethod($method, $iterations, $benchmarks)
     {
-        $start = microtime(true);
-        $this->$method();
-        return microtime(true) - $start;
-    }
+        /** @var \Athletic\Benchmarkers\BenchmarkerInterface[] $benchs */
+        $benchs = array();
 
-
-    /**
-     * @param int $iterations
-     *
-     * @return float
-     */
-    private function getCalibrationTime($iterations)
-    {
-        $emptyCalibrationMethod = 'emptyCalibrationMethod';
-        $resultsCalibration     = array();
-        for ($i = 0; $i < $iterations; ++$i) {
-            $resultsCalibration[$i] = $this->timeMethod($emptyCalibrationMethod);
+        // Create benchmarkers.
+        foreach($benchmarks as $benchmark) {
+            $bench = new ReflectionClass($benchmark);
+            $benchs[$benchmark] = $bench->newInstance();
         }
-        return array_sum($resultsCalibration) / count($resultsCalibration);
-    }
 
+        $this->currentBenchmarkers = $benchs;
 
-    private function emptyCalibrationMethod()
-    {
+        // Iterate
+        for ($i = 0; $i < $iterations; ++$i) {
+            // Trigger event
+            $this->setUp();
 
+            // Start benchmark value
+            foreach($benchs as $bench) {
+                $bench->start();
+            }
+
+            // Run the actual method
+            $this->$method();
+
+            // Stop benchmark value
+            foreach($benchs as $bench) {
+                $bench->end();
+            }
+
+            // Trigger event
+            $this->tearDown();
+        }
+
+        $this->currentBenchmarkers = array();
+
+        return $benchs;
     }
 
 
@@ -174,6 +202,28 @@ abstract class AthleticEvent
 
         if (isset($annotations['baseline']) === true) {
             $finalResults->setBaseline();
+        }
+
+        if (isset($annotations['show'])) {
+            if(!is_array($annotations['show'])) {
+                $annotations['show'] = array($annotations['show']);
+            }
+
+            $finalResults->hideAll();
+
+            foreach($annotations['show'] as $show) {
+                $finalResults->showResult($show);
+            }
+        }
+
+        if (isset($annotations['hide'])) {
+            if(!is_array($annotations['hide'])) {
+                $annotations['hide'] = array($annotations['hide']);
+            }
+
+            foreach($annotations['hide'] as $hide) {
+                $finalResults->hideResult($hide);
+            }
         }
     }
 

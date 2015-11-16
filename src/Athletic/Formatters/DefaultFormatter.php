@@ -28,9 +28,7 @@ class DefaultFormatter implements FormatterInterface
 
         $header = array(
             'Method Name',
-            'Iterations',
-            'Average Time',
-            'Ops/second',
+            'Iterations'
         );
 
         foreach ($results as $result) {
@@ -39,12 +37,10 @@ class DefaultFormatter implements FormatterInterface
             // build a table containing the formatted numbers
             $table = array();
             foreach ($result as $methodResult) {
-                $table[] = array(
-                    $methodResult->methodName,
-                    number_format($methodResult->iterations),
-                    number_format($methodResult->avg, 13),
-                    number_format($methodResult->ops, 5),
-                );
+                /** @var $methodResult MethodResults */
+                $formattedResult = $methodResult->getResults();
+                $header = array_merge($header, array_keys($formattedResult));
+                $table[] = array_merge([$methodResult->methodName], [$methodResult->iterations], array_values($formattedResult));
             }
 
             // determine column widths for table layout
@@ -56,27 +52,35 @@ class DefaultFormatter implements FormatterInterface
             }
 
             // format header and table rows
-            $returnString .= sprintf(
-                "    %s   %s   %s   %s\n",
-                str_pad($header[0], $lengths[0]),
-                str_pad($header[1], $lengths[1]),
-                str_pad($header[2], $lengths[2]),
-                str_pad($header[3], $lengths[3])
+            $returnString .= vsprintf(
+                " ".str_repeat("   %s", count($header))."\n",
+                array_map(function($index) use($header, $lengths) {
+                    return str_pad($header[$index], $lengths[$index]);
+                }, array_keys($header))
             );
-            $returnString .= sprintf(
-                "    %s %s %s %s\n",
-                str_repeat('-', $lengths[0] + 1),
-                str_repeat('-', $lengths[1] + 2),
-                str_repeat('-', $lengths[2] + 2),
-                str_repeat('-', $lengths[3] + 2)
+
+            $returnString .= vsprintf(
+                "    " . str_repeat(" %s", count($lengths)) . "\n",
+                array_map(function ($index) use ($lengths) {
+                    if ($index === 0) {
+                        return str_repeat('-', $lengths[$index] + 1);
+                    } else {
+                        return str_repeat('-', $lengths[$index] + 2);
+                    }
+
+                }, array_keys($lengths))
             );
+
             foreach ($table as $row) {
-                $returnString .= sprintf(
-                    "    %s: [%s] [%s] [%s]\n",
-                    str_pad($row[0], $lengths[0]),
-                    str_pad($row[1], $lengths[1], ' ', STR_PAD_LEFT),
-                    str_pad($row[2], $lengths[2]),
-                    str_pad($row[3], $lengths[3])
+                $returnString .= vsprintf(
+                    "    %s:".str_repeat(" [%s]", (count($header)-1))."\n",
+                    array_map(function($index) use($row, $lengths) {
+                        if($index === 1) {
+                            return str_pad($row[$index], $lengths[$index], ' ', STR_PAD_LEFT);
+                        } else {
+                            return str_pad($row[$index], $lengths[$index]);
+                        }
+                    }, array_keys($header))
                 );
             }
 

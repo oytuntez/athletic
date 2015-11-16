@@ -121,7 +121,6 @@ class DICBuilder
         };
     }
 
-
     private function setupCmdLine()
     {
         $this->athletic['cmdLine'] = function ($dic) {
