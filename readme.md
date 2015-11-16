@@ -1,6 +1,8 @@
 # Athletic
 Athletic is a benchmarking framework.  It allows developers to benchmark their code without littering microtime() calls everywhere.
 
+**This repository was forked from `polyfractal/athletic`, however branched a different path from the source codebase. The main difference is that this codebase will accept dynamic benchmarking classes which allows you to benchmark anything you want, not just the time spent.**
+
 Athletic was inspired by the annotation format that PHPUnit uses.  Benchmark tests extend the `AthleticEvent` class and are annotated with specific docblock parameters.  The benchmark suite is then run with the Athletic command-line tool.
 
 | Branch | Unit Tests | Coverage |
@@ -149,6 +151,93 @@ Finally, we get to the meat of the benchmark.  Here we have two methods that are
 
 That's it!  Now you are ready to run the benchmark.
 
+## Specifying benchmarkers
+On this repository which differed from the original repository, you can annotate which benchmarks you want to use on your Event. There are two built-in benchmarkers: `TimeBenchmarker`, `MemoryBenchmarker`.
+
+You can specify which ones you want to use with annotations:
+
+```php
+    /**
+     * @iterations 1000
+     * @benchmark TimeBenchmarker
+     */
+    public function fastIndexingAlgo()
+    {
+        $this->fast->index($this->data);
+    }
+
+
+    /**
+     * @iterations 1000
+     * @benchmark TimeBenchmarker
+     * @benchmark MemoryBenchmarker
+     */
+    public function slowIndexingAlgo()
+    {
+        $this->slow->index($this->data);
+    }
+```
+
+Use `@benchmark` annotation multiple times for more than one benchmarker.
+
+*If you don't specify any benchmarker, `TimeBenchmarker` will be used by default.*
+
+## Custom benchmarkers
+Apart from the default benchmarkers, you can write and use your own benchmarkers, all you need to do is implement `Athletic\Benchmarkers\BenchmarkerInterface` interface. Take a look at current benchmarkers to learn more about how to implement your own benchmarkers.
+
+Having written your own, just specify its full class name and that's it:
+```php
+    /**
+     * @iterations 200
+     * @benchmark \MyApplication\Tests\Benchmarkers\LatencyBenchmarker
+     */
+    public function talkToRemoteServer()
+    {
+        // ...
+        curl_exec($ch);
+        // ...
+    }
+```
+
+## Toggling benchmark results
+Another feature added on this repository is to toggle visibility of specific columns on benchmark results.
+
+```php
+    /**
+     * @iterations 200
+     * @benchmark TimeBenchmarker
+     * @hide Ops/second
+     */
+    public function myArrayIteration()
+    {
+        for($i = 0; $i < count($array); $++) {
+            // ...
+        }
+    }
+```
+
+On the result output, `Ops/second` column from the result set provided by `TimeBenchmarker` will not be visible. On the other hand, you can try hiding all and then showing some:
+
+```php
+    /**
+     * @iterations 200
+     * @benchmark TimeBenchmarker
+     * @benchmark MemoryBenchmarker
+     * @show Average Time
+     * @show Average Memory
+     */
+    public function myArrayIteration()
+    {
+        for($i = 0; $i < count($array); $++) {
+            // ...
+        }
+    }
+```
+
+This annotation will hide all results other than `Average Time` and `Average Memory` from `TimeBenchmarker` and `MemoryBenchmarker`.
+
+*Each benchmarker class has a @provides annotation which lets you know which columns you can show/hide.*
+
 ## Running Athletic
 A benchmark test is run from the command line:
 
@@ -204,6 +293,6 @@ If the goal is to benchmark the initial calculation, it makes sense to place the
 
 If the goal, however, is to benchmark the entire process (initial calculation and subsequent caching), then it makes more sense to instantiate the object in classSetUp() so that it is only built once.
 
-### Calibration
+### Calibration in `TimeBenchmarker`
 
 Athletic uses Reflection and variable functions to invoke the methods in your Event.  Because there is some internal overhead to variable functions, Athletic performs a "calibration" step before each iteration.  This step calls an empty calibration method and times how long it takes.  This time is then subtracted from the iterations total time, providing a more accurate total time.

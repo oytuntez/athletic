@@ -10,6 +10,11 @@ namespace Athletic\Benchmarkers;
 /**
  * Benchmarks the time consumed by the method being benchmarked.
  *
+ * @provides
+ *      Total Time
+ *      Average Time
+ *      Ops/second
+ *
  * Class TimeBenchmarker
  * @package Athletic\Benchmarkers
  */

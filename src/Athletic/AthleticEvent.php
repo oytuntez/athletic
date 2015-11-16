@@ -127,7 +127,7 @@ abstract class AthleticEvent
         $iterations = $annotations['iterations'];
 
         if(!isset($annotations['benchmark']) || !$annotations['benchmark']) {
-            $annotations['benchmark'] = ['TimeBenchmarker'];
+            $annotations['benchmark'] = ['\Athletic\Benchmarkers\TimeBenchmarker'];
         } elseif(!is_array($annotations['benchmark'])) {
             $annotations['benchmark'] = array($annotations['benchmark']);
         }
@@ -156,6 +156,12 @@ abstract class AthleticEvent
 
         // Create benchmarkers.
         foreach($benchmarks as $benchmark) {
+            if($benchmark === 'TimeBenchmarker') {
+                $benchmark = '\Athletic\Benchmarkers\TimeBenchmarker';
+            } elseif($benchmark === 'MemoryBenchmarker') {
+                $benchmark = '\Athletic\Benchmarkers\MemoryBenchmarker';
+            }
+
             $bench = new ReflectionClass($benchmark);
             $benchs[$benchmark] = $bench->newInstance();
         }

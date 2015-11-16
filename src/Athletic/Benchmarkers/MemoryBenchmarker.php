@@ -10,6 +10,10 @@ namespace Athletic\Benchmarkers;
 /**
  * Benchmarks the memory consumed by the method being benchmarked.
  *
+ * @provides
+ *      First Iteration Memory Usage
+ *      Average Memory
+ *
  * Class MemoryBenchmarker
  * @package Athletic\Benchmarkers
  */
