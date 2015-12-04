@@ -39,7 +39,7 @@ class DefaultFormatter implements FormatterInterface
             foreach ($result as $methodResult) {
                 /** @var $methodResult MethodResults */
                 $formattedResult = $methodResult->getResults();
-                $header = array_merge($header, array_keys($formattedResult));
+                $header = array_unique(array_merge($header, array_keys($formattedResult)));
                 $table[] = array_merge([$methodResult->methodName], [$methodResult->iterations], array_values($formattedResult));
             }
 
